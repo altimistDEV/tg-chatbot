@@ -42,7 +42,7 @@ module.exports = async function core(text) {
     webResults = await searchWeb(text);
   }
 
-  const systemPrompt = process.env.SYSTEM_PROMPT + "\n\n" + services;
+  let systemPrompt = process.env.SYSTEM_PROMPT + "\n\n" + services;
   if (webResults) {
     systemPrompt += "\n\nHere is some current information from the web:\n" + 
                    JSON.stringify(webResults, null, 2);
