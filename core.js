@@ -35,14 +35,31 @@ module.exports = async function core(text) {
   const needsWebSearch = text.toLowerCase().includes('current') || 
                         text.toLowerCase().includes('price') ||
                         text.toLowerCase().includes('latest') ||
-                        text.toLowerCase().includes('news');
+                        text.toLowerCase().includes('news') ||
+                        text.toLowerCase().includes('weather');
+
+  // Check if the query is about Altimist services
+  const isServiceQuery = text.toLowerCase().includes('altimist') ||
+                        text.toLowerCase().includes('service') ||
+                        text.toLowerCase().includes('consulting') ||
+                        text.toLowerCase().includes('advisory');
 
   let webResults = null;
   if (needsWebSearch) {
     webResults = await searchWeb(text);
   }
 
-  let systemPrompt = process.env.SYSTEM_PROMPT + "\n\n" + services;
+  let systemPrompt;
+  if (isServiceQuery) {
+    // Use Altimist service prompt for service-related queries
+    systemPrompt = process.env.SYSTEM_PROMPT + "\n\n" + services;
+  } else {
+    // Use a more general prompt for web search queries
+    systemPrompt = "You are a helpful assistant that provides accurate and up-to-date information from the web. " +
+                  "When providing information, cite your sources and be clear about what information is current and what might be outdated. " +
+                  "If you're not sure about something, say so rather than making assumptions.";
+  }
+
   if (webResults) {
     systemPrompt += "\n\nHere is some current information from the web:\n" + 
                    JSON.stringify(webResults, null, 2);
