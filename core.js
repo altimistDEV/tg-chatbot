@@ -3,8 +3,11 @@ const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs');
 const { getJson } = require('serpapi');
 
-// Debug: Check if API key is loaded
-console.log('API Key loaded:', process.env.ANTHROPIC_API_KEY ? 'Yes' : 'No');
+// Validate API key
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error('Error: ANTHROPIC_API_KEY is not set in environment variables');
+  process.exit(1);
+}
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
