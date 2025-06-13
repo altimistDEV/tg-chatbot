@@ -1,9 +1,14 @@
 require('dotenv').config();
-const { OpenAI } = require('openai');
+const Anthropic = require('@anthropic-ai/sdk');
 const fs = require('fs');
 const { getJson } = require('serpapi');
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Debug: Check if API key is loaded
+console.log('API Key loaded:', process.env.ANTHROPIC_API_KEY ? 'Yes' : 'No');
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 // In-memory conversation history store
 const conversationHistory = {};
@@ -77,18 +82,18 @@ module.exports = async function core(text, chatId) {
   // Add the current user message to history
   history.push({ role: 'user', content: text });
 
-  // Prepare messages for OpenAI, including conversation history
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    ...history
-  ];
+  // Prepare messages for Claude, including conversation history
+  const messages = history;
 
-  const res = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
-    messages: messages
+  const res = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4096,
+    messages: messages,
+    temperature: 0.7,
+    system: systemPrompt,
   });
 
-  const response = res.choices[0].message.content.slice(0, 4096);
+  const response = res.content[0].text;
   
   // Add the assistant's response to history
   history.push({ role: 'assistant', content: response });
