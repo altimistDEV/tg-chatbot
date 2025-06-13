@@ -5,6 +5,9 @@ const { getJson } = require('serpapi');
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// In-memory conversation history store
+const conversationHistory = {};
+
 async function searchWeb(query) {
   try {
     const results = await getJson({
@@ -27,7 +30,7 @@ async function searchWeb(query) {
   }
 }
 
-module.exports = async function core(text) {
+module.exports = async function core(text, chatId) {
   // Read the latest services.txt every time
   const services = fs.readFileSync('services.txt', 'utf8');
 
@@ -65,13 +68,35 @@ module.exports = async function core(text) {
                    JSON.stringify(webResults, null, 2);
   }
 
+  // Retrieve conversation history for this chat
+  if (!conversationHistory[chatId]) {
+    conversationHistory[chatId] = [];
+  }
+  const history = conversationHistory[chatId];
+
+  // Add the current user message to history
+  history.push({ role: 'user', content: text });
+
+  // Prepare messages for OpenAI, including conversation history
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...history
+  ];
+
   const res = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: text }
-    ]
+    messages: messages
   });
 
-  return res.choices[0].message.content.slice(0, 4096);
+  const response = res.choices[0].message.content.slice(0, 4096);
+  
+  // Add the assistant's response to history
+  history.push({ role: 'assistant', content: response });
+
+  // Limit history to last 10 messages to prevent token overflow
+  if (history.length > 10) {
+    history.shift();
+  }
+
+  return response;
 };

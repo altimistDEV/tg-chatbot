@@ -11,7 +11,7 @@ exports.webhook = async (req, res) => {
   const chatId = upd.message.chat.id;
   const userMsg = upd.message.text;
 
-  const answer = await chat(userMsg);
+  const answer = await chat(userMsg, chatId);
 
   await axios.post(`${TG_API}/sendMessage`, {
     chat_id: chatId,
