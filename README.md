@@ -1,203 +1,291 @@
-🧠 Altimist Telegram Chatbot
+# 🤖 Telegram Trading Bot
 
-A lightweight, always‑on Telegram bot that uses OpenAI GPT‑3.5‑Turbo to answer customers’ questions about Altimist’s services.
+A sophisticated Telegram bot with AI capabilities and Hyperliquid trading integration, built with TypeScript and Claude AI.
 
-Stack : Node 18 • Express • OpenAI SDK • dotenv
+## 🚀 Features
 
-Hosting : Render (Free Web Service)
+- **AI-Powered Conversations**: Powered by Claude (Anthropic) for natural language interactions
+- **Trading Integration**: Real-time position tracking with Hyperliquid DEX
+- **Web Search**: SerpAPI integration for current information
+- **Modular Architecture**: Clean, extensible module system
+- **TypeScript**: Full type safety and modern development experience
+- **Comprehensive Testing**: Unit, integration, and e2e test suites
 
-Messaging : Telegram Bot API
+## 📦 Tech Stack
 
-## Project Rationale
+- **Runtime**: Node.js 18+ with TypeScript
+- **Framework**: Express + Telegraf
+- **AI**: Anthropic Claude API
+- **Trading**: Hyperliquid API
+- **Testing**: Custom TypeScript test framework
+- **Logging**: Pino with pretty formatting
 
-Altimist needed a quick, low‑maintenance way to:
+## 🏗️ Architecture
 
-Give prospects instant, 24 × 7 answers about our consulting, incubation and AI services.
+```
+Telegram ↔ Webhook/Polling ─┐
+                            ├─ index.ts (Express + Telegraf)
+                            ├─ core.ts (Message Router)
+                            └─ modules/
+                                ├─ trading.module.ts (Hyperliquid)
+                                ├─ ai.module.ts (Claude)
+                                └─ help.module.ts (Commands)
+```
 
-Keep all logic outside vendor platforms (Twilio was too heavy).
+## 🚀 Quick Start
 
-Allow easy future expansion to Discord, Signal & WhatsApp.
+### Prerequisites
 
-Let non‑developers update the service catalogue by editing a simple services.txt file—no redeploy required locally.
+- Node.js 18 or higher
+- npm or yarn
+- Telegram Bot Token (from [@BotFather](https://t.me/botfather))
+- API Keys (see Environment Setup)
 
-## Architecture (Today)
+### Installation
 
-Telegram ↔ webhook  ─┐        (Render free dyno)
-                     ├─ index.js (Express)
-services.txt ← fs.readFile ─┤
-                     └─ core.js  ──► OpenAI Chat Completion
-
-index.js routes Telegram POSTs to adapters/telegram.js.
-
-core.js constructs the prompt from SYSTEM_PROMPT + the live contents of services.txt.
-
-The bot replies via Telegram’s sendMessage endpoint.
-
-## Step‑by‑Step Build Log
-
-Exactly what we did (so you can reproduce from scratch).
-
- # 
-
-Action
-
-Commands / Notes
-
- 1
-
-Bootstrap project
-
-mkdir tg-chatbot && cd tg-chatbot ⋯ npm init -y
-
- 2
-
-Install deps
-
-npm i express body-parser axios dotenv openai
-
- 3
-
-Create folders & files
-
-mkdir adapters``ni .env core.js index.js adapters\telegram.js
-
- 4
-
-**Fill **`` with OPENAI_API_KEY, TG_TOKEN, SYSTEM_PROMPT, PORT
-
-
-
- 5
-
-Write code (core, adapter, index)
-
-See /core.js, /adapters/telegram.js, /index.js
-
- 6
-
-**Create **``
-
-List all real Altimist offerings (editable any time).
-
- 7
-
-Local test
-
-node index.js + ngrok http 3000 + setWebhook() helper
-
- 8
-
-**Add **``
-
-Exclude .env, node_modules
-
- 9
-
-Commit & push to GitHub
-
-git remote add origin … → git push -u origin main
-
- 10
-
-Deploy to Render
-
-Dashboard → New Web Service → build cmd npm install, start cmd node index.js
-
- 11
-
-Set Telegram webhook to Render URL
-
-node -e "require('./adapters/telegram').setWebhook('https://YOUR.onrender.com')"
-
- 12
-
-Bot live!
-
-Send “hi” in Telegram → GPT answer
-
-## Quick‑Start (Local)
-
-# clone & install
-git clone https://github.com/altimistDEV/tg-chatbot.git
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/tg-chatbot.git
 cd tg-chatbot
+
+# Install dependencies
 npm install
 
-# copy .env.example → .env and add your keys
-node index.js            # bot on http://localhost:3000
-ngrok http 3000          # expose
-node -e "require('./adapters/telegram').setWebhook('https://xyz.ngrok.app')"
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your API keys
+```
 
-Update services.txt any time → changes take effect on the next message without restart.
+### Environment Setup
 
-## Deployment (Render)
+Create a `.env` file with:
 
-Create a Web Service → connect repo → Node 18.
+```env
+# Required
+TG_TOKEN=your_telegram_bot_token
+ANTHROPIC_API_KEY=your_anthropic_api_key
 
-Build command npm install  •  Start command node index.js.
+# Optional
+SERPAPI_KEY=your_serpapi_key_for_web_search
+NODE_ENV=development
+PORT=3000
 
-Set environment variables (OPENAI_API_KEY, TG_TOKEN, etc.).
+# Hyperliquid Configuration
+HYPERLIQUID_API_URL=https://api.hyperliquid.xyz  # or testnet
+HYPERLIQUID_TIMEOUT=10000
+```
 
-Wait for first deploy → copy Render URL → run setWebhook() once.
+### Running the Bot
 
-Free tier stays awake as long as Telegram traffic hits it roughly every 15 min.
+```bash
+# Development mode (with auto-reload)
+npm run dev
 
-## Future Roadmap 🗺️
+# Production mode
+npm start
 
-1 ▪ Multi‑Channel Expansion
+# Run tests
+npm test
+```
 
-Channel
+## 📝 Available Commands
 
-Approach
+### Trading Commands
+- `/position` - Show all your open positions
+- `/position BTC` - Show detailed BTC position
+- `/linkwallet 0x...` - Link your Hyperliquid wallet
+- Natural language: "show my positions", "what are my trades"
 
-Discord
+### General Commands
+- `/help` - Display available commands
+- `/start` - Welcome message
+- AI chat - Just type naturally!
 
-Add adapters/discord.js using discord.js library + Bot token.
+## 🧪 Testing
 
-Signal
+The project includes a comprehensive test suite:
 
-Run signal-cli-rest-api container; add webhook adapter.
+```bash
+# Run all tests
+npm test
 
-WhatsApp
+# Run specific test categories
+npm run test:unit         # Unit tests
+npm run test:integration  # Integration tests
+npm run test:e2e         # End-to-end tests
 
-When Altimist’s WABA is ready, add 360dialog Cloud API adapter.
+# Run individual test suites
+npm run test:position     # Position command tests
+npm run test:userservice  # UserService tests
+```
 
-2 ▪ Persistent Memory / Context
+### Test Coverage
+- ✅ UserService: Wallet management and user data
+- ✅ Position Command: Hyperliquid integration
+- ✅ Trading Module: Command routing and responses
+- ✅ Core Functions: Message handling and routing
 
-Plug simple Redis (Upstash) to store last N turns per user.
+## 🔧 Development
 
-Improves continuity across long sessions.
+### Project Structure
 
-3 ▪ P2P Payments via Web3 Domains (Vision)
+```
+tg-chatbot/
+├── src/
+│   ├── modules/          # Bot modules (trading, AI, help)
+│   ├── commands/         # Command handlers
+│   ├── services/         # Business logic
+│   ├── utils/            # Utilities
+│   └── types/            # TypeScript types
+├── tests/
+│   ├── unit/            # Unit tests
+│   ├── integration/     # Integration tests
+│   └── e2e/            # End-to-end tests
+├── index.ts             # Application entry
+└── package.json
+```
 
-Goal: Users type natural language like “send 50 BCH to arthur.altimist” and the bot executes a peer‑to‑peer crypto payment.
+### Adding New Features
 
-Planned components
+1. **Create a new module** in `src/modules/`
+2. **Extend BaseModule** class
+3. **Register patterns** for command matching
+4. **Implement handle()** method
+5. **Add tests** in appropriate test directory
 
-Wallet integration – Connect Altimist custodial wallet or user‑provided wallet via Wallet Connect.
+Example module:
 
-Web3 domain lookup – Resolve arthur.altimist → wallet address.
+```typescript
+import BaseModule from './base.module.js';
 
-Intent parsing – Extend core.js to detect a payment intent (/send, send, transfer).
+export class MyModule extends BaseModule {
+  constructor() {
+    super();
+    this.name = 'MyModule';
+    this.patterns = [
+      { pattern: /^\/mycommand/, handler: 'handleMyCommand' }
+    ];
+  }
 
-Confirmation step – Bot confirms amount, currency, recipient.
+  async handle(message: string, ctx: any): Promise<string> {
+    return 'Response from MyModule';
+  }
+}
+```
 
-Blockchain TX – Call BCH RPC or payment API and return TXID.
+## 🚀 Deployment
 
-Security – Multi‑factor or Telegram /confirm 123456 to prevent spoofing.
+### Using PM2 (Recommended)
 
-Future tech choices: BCH SDK, ENS‑style resolver for .altimist, signed JWT proof.
+```bash
+# Install PM2 globally
+npm install -g pm2
 
-## Contributing
+# Start the bot
+pm2 start npm --name "tg-bot" -- start
 
-Fork the repo.
+# Save PM2 configuration
+pm2 save
+pm2 startup
+```
 
-git checkout -b feature/my-change
+### Using Docker
 
-Commit & push ➜ open PR.
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+CMD ["npm", "start"]
+```
 
-Feel free to open issues to discuss new service ideas or adapters!
+### Using Render
 
-## License
+1. Connect your GitHub repository
+2. Set build command: `npm install && npm run build`
+3. Set start command: `npm start`
+4. Add environment variables
+5. Deploy!
 
-MIT © Altimist 2025
+## 🔒 Security Notes
 
+- Never commit `.env` files
+- Use environment variables for all secrets
+- Validate all user inputs
+- Implement rate limiting for production
+- Use HTTPS webhooks in production
+
+## 📊 Monitoring
+
+The bot includes comprehensive logging with Pino:
+
+```bash
+# View logs in development
+npm run dev
+
+# Production logs (JSON format)
+npm start | pino-pretty
+```
+
+Log levels:
+- `ERROR`: Critical errors
+- `WARN`: Warning conditions
+- `INFO`: General information
+- `DEBUG`: Detailed debug info
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Coding Standards
+
+- Use TypeScript for all new code
+- Follow existing code style
+- Write tests for new features
+- Update documentation as needed
+- Run `npm run typecheck` before committing
+
+## 🐛 Troubleshooting
+
+### Bot not responding?
+- Check bot token is correct
+- Verify webhook is set (production) or polling is active (development)
+- Check logs for errors
+
+### Position command not working?
+- Ensure Hyperliquid API URL is correct (mainnet vs testnet)
+- Verify wallet is linked (in production)
+- Check if wallet has open positions
+
+### Tests failing?
+- Run `npm install` to ensure all dependencies are installed
+- Check environment variables are set
+- Verify network connectivity for integration tests
+
+## 📜 License
+
+MIT © 2025
+
+## 🙏 Acknowledgments
+
+- [Telegraf](https://telegraf.js.org/) - Telegram Bot Framework
+- [Anthropic](https://www.anthropic.com/) - Claude AI
+- [Hyperliquid](https://hyperliquid.xyz/) - DEX Integration
+- [TypeScript](https://www.typescriptlang.org/) - Type Safety
+
+## 📮 Support
+
+For issues, questions, or suggestions:
+- Open an issue on GitHub
+- Contact via Telegram: @yourusername
+- Email: support@yourproject.com
+
+---
+
+Built with ❤️ by the Altimist team
