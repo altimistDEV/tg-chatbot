@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: telegram-trading-bot
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+    # Your existing environment variables will be preserved
+    # TG_TOKEN and ANTHROPIC_API_KEY should already be configured
