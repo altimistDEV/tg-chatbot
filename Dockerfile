@@ -18,7 +18,7 @@ COPY . .
 RUN npm run build
 
 # Remove dev dependencies and install only production dependencies
-RUN npm prune --production
+RUN npm prune --omit=dev
 
 # Stage 2: Runtime stage - Minimal production image
 FROM node:20-alpine AS runtime
