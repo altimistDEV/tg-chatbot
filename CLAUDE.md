@@ -2,105 +2,140 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Commands
+## Quick Commands
 
 ### Development
 ```bash
-# Run the bot locally
-node index.js
-
-# Run tests
-node tests/test-claude.js           # Test Claude AI integration
-node tests/test-search.js           # Test web search functionality
-node tests/test-hyperliquid.js      # Test Hyperliquid trading
-node tests/test-core.js             # Test modular core system
-node tests/test-platform-agnostic.js # Test multi-platform support
+npm run dev              # Development with hot reload
+npm run build           # Compile TypeScript
+npm run start           # Run production build
+npm run test            # Run all tests
+npm run type-check      # TypeScript type checking
 ```
 
-### Deployment
+### Docker
 ```bash
-# Set Telegram webhook (after deployment)
-node -e "require('./adaptors/telegram').setWebhook('https://YOUR_URL.onrender.com')"
+npm run docker:build   # Build production Docker image
+npm run docker:up      # Start with docker-compose
+npm run docker:logs    # View container logs
+npm run docker:down    # Stop containers
+```
+
+### Testing
+```bash
+npm run test:unit           # Unit tests
+npm run test:integration    # Integration tests
+npm run test:e2e           # End-to-end tests
 ```
 
 ## Architecture Overview
 
-This is a platform-agnostic, modular chatbot that uses Claude Sonnet 4 API for AI chat and integrates with Hyperliquid for trading features. Currently deployed for Telegram but supports multiple messaging platforms.
+Modern TypeScript trading bot with modular architecture, Docker support, and AI-powered features. Uses Claude Sonnet 4 for intelligent responses and integrates with Hyperliquid DEX for trading.
 
-### Core Components
+### Current Architecture
 
-1. **index.js**: Express server entry point that handles webhook requests. Routes:
-   - `/telegram` - Telegram webhook endpoint
-   - Can add: `/whatsapp`, `/discord`, etc.
+**📁 Core Structure:**
+```
+src/
+├── commands/           # Trading commands (position tracking)
+├── modules/           # Feature modules (AI, Help, Trading)
+├── services/          # Business logic (UserService)
+├── utils/            # Utilities (Logger, Formatter)
+├── config/           # Configuration management
+└── types/            # TypeScript type definitions
+```
 
-2. **core.js**: Platform-agnostic modular core that:
-   - Routes messages to appropriate modules based on priority
-   - Maintains in-memory conversation history per chat ID
-   - Accepts platform context (platform, userId, formatting)
-   - Modules loaded: Trading (priority 10), Help (20), AI (50)
+**🚀 Entry Point:** `index.ts` - Express server with health checks
+**🔄 Core Engine:** `src/core.ts` - Message routing and module management
+**🐳 Deployment:** Docker with multi-stage builds, Node.js 20
 
-3. **modules/**: Self-contained feature modules (work across all platforms)
-   - `trading.module.js`: Hyperliquid position checking and wallet management
-   - `ai.module.js`: Claude AI chat with web search integration
-   - `help.module.js`: Bot commands and help information
-   - `base.module.js`: Base interface for all modules
+### Key Components
 
-4. **adaptors/**: Platform-specific adapters
-   - `telegram.js`: Telegram Bot API integration
-   - Future: `whatsapp.js`, `discord.js`, etc.
+1. **Modular System**: Priority-based module routing (Trading → Help → AI)
+2. **TypeScript**: Full type safety with strict configuration
+3. **Docker Ready**: Multi-stage builds, health checks, non-root security
+4. **Testing**: Comprehensive unit/integration/e2e test suite
+5. **Logging**: Structured JSON logging with Pino
+6. **User Management**: Persistent user preferences and context
 
-5. **utils/formatter.js**: Cross-platform message formatting
-   - Converts between Markdown, HTML, WhatsApp, Discord, plain text
-   - Ensures responses display correctly on each platform
+### Environment Variables
 
-6. **services.txt**: Live-editable file containing Altimist service descriptions
+**Required:**
+- `TG_TOKEN` - Telegram bot token
+- `ANTHROPIC_API_KEY` - Claude API key
 
-### Key Integration Points
+**Optional:**
+- `SERPAPI_KEY` - Web search functionality
+- `SYSTEM_PROMPT` - Custom bot personality
+- `HYPERLIQUID_API_URL` - Trading API endpoint
+- `NODE_ENV` - Environment (production/development)
+- `PORT` - Server port (default: 3000)
 
-- **Environment Variables Required**:
-  - `ANTHROPIC_API_KEY`: Claude API authentication
-  - `TG_TOKEN`: Telegram bot token
-  - `SERPAPI_KEY`: For web search functionality
-  - `SYSTEM_PROMPT`: Base prompt for Altimist service queries
-  - `PORT`: Server port (defaults to 3000)
+### Current Features
 
-- **Message Flow**: 
-  ```
-  Platform → adapter.js → core.js (with platform context) → Modules → Response
-                              ↓
-                    Platform context: { platform, userId, formatting }
-  ```
+**✅ Implemented:**
+- Position tracking without wallet management
+- AI chat with web search integration
+- Help system with command discovery
+- User preferences and context storage
+- Comprehensive error handling and logging
+- Docker deployment with health monitoring
 
-- **State Management**: Conversation history stored in-memory, cleared on server restart
+**🚧 In Progress (see ENHANCEMENT_ROADMAP.md):**
+- Order placement and management
+- Advanced portfolio analytics
+- Real-time market data streaming
+- Risk management automation
+- Enhanced AI with market analysis
 
-### Adding New Messaging Platforms
+### Message Flow
+```
+Telegram → index.ts → core.ts → Module Priority Router
+                                      ↓
+                           [Trading, Help, AI] → Response
+```
 
-To add support for a new messaging platform (e.g., WhatsApp, Discord):
+### Adding Features
 
-1. Create adapter in `src/adaptors/[platform].js`
-2. Pass platform context to core:
-   ```javascript
-   const response = await chat(message, chatId, {
-     platform: 'whatsapp',
-     formatting: 'whatsapp'
-   });
-   ```
-3. Add route in `index.js`: `app.post('/[platform]', adapter.webhook)`
-4. Use `utils/formatter.js` if custom formatting needed
+**New Module:**
+1. Extend `BaseModule` in `src/modules/`
+2. Implement `canHandle()` and `handle()` methods  
+3. Register in `core.ts` with priority
+4. Add tests in `tests/`
 
-### Testing Approach
+**New Command:**
+1. Add command logic in `src/commands/`
+2. Register patterns in appropriate module
+3. Add integration tests
+4. Update help documentation
 
-Use the provided test scripts to validate functionality:
-- `tests/test-claude.js` - Test Claude AI integration
-- `tests/test-search.js` - Test web search functionality  
-- `tests/test-hyperliquid.js` - Test Hyperliquid trading integration
-- `tests/test-core.js` - Test the modular core system
-- `tests/test-platform-agnostic.js` - Test multi-platform support
+### Development Workflow
 
-### Module System
+1. **Local Development:** `npm run dev` (hot reload with tsx)
+2. **Type Checking:** `npm run type-check` (validate TypeScript)
+3. **Testing:** `npm run test` (run full test suite)
+4. **Docker Testing:** `npm run docker:up` (test containerized)
+5. **Production:** Deployed via Docker on Render
 
-To add a new module:
-1. Create module extending `BaseModule` in `src/modules/`
-2. Implement `canHandle()` and `handle()` methods
-3. Register in `core.js` with priority (lower = higher priority)
-4. Module automatically works across all platforms
+### Docker Architecture
+
+- **Multi-stage build:** Builder → Runtime optimization
+- **Security:** Non-root user, minimal Alpine Linux
+- **Performance:** Production-only dependencies, health checks
+- **Monitoring:** Structured logs, port 3000 health endpoint
+
+### Testing Strategy
+
+- **Unit Tests:** Individual components (services, utils)
+- **Integration Tests:** Module interactions, API calls
+- **E2E Tests:** Full user workflows via Telegram
+- **Custom Test Runner:** `test-runner.ts` with parallel execution
+
+### Current Deployment
+
+- **Platform:** Render (Docker environment)
+- **URL:** https://altimist-copilot.onrender.com
+- **Health:** /health endpoint with feature status
+- **Logs:** Structured JSON with correlation IDs
+
+For detailed enhancement plans, see `ENHANCEMENT_ROADMAP.md`.
