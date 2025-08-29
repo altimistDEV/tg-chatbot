@@ -1,3 +1,4 @@
+import { initializeBetterStackMonitoring } from './log-transport-simple.js';
 export declare enum LogLevel {
     TRACE = "trace",
     DEBUG = "debug",
@@ -93,6 +94,7 @@ declare class EnhancedLogger {
     private startTime;
     private userContext?;
     private performanceCollector;
+    static betterStackMonitor: ReturnType<typeof initializeBetterStackMonitoring> | null;
     constructor(options?: {
         correlationId?: string;
         userContext?: UserContext;
@@ -118,6 +120,7 @@ export declare function createLogger(options?: {
     correlationId?: string;
     userContext?: UserContext;
 }): EnhancedLogger;
+export declare function flushLogs(): Promise<void>;
 export declare function createCorrelationId(): string;
 export declare function createSessionId(): string;
 export default EnhancedLogger;

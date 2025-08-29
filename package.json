@@ -55,6 +55,8 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",
+    "@logtail/node": "^0.5.5",
+    "@logtail/pino": "^0.5.5",
     "axios": "^1.11.0",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",

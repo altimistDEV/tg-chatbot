@@ -1,5 +1,6 @@
 import pino from 'pino';
 import { randomUUID } from 'crypto';
+import { createMultiTransportLogger, initializeBetterStackMonitoring } from './log-transport-simple.js';
 
 // Log levels
 export enum LogLevel {
@@ -121,6 +122,7 @@ class EnhancedLogger {
   private startTime: number;
   private userContext?: UserContext;
   private performanceCollector: Map<string, number>;
+  public static betterStackMonitor: ReturnType<typeof initializeBetterStackMonitoring> | null = null;
   
   constructor(options?: { correlationId?: string; userContext?: UserContext }) {
     this.correlationId = options?.correlationId || randomUUID();
@@ -128,16 +130,35 @@ class EnhancedLogger {
     this.startTime = Date.now();
     this.performanceCollector = new Map();
     
-    // Configure Pino with custom formatting
-    this.logger = pino({
-      level: process.env.LOG_LEVEL || 'info',
-      formatters: {
-        level: (label) => ({ level: label }),
-        bindings: () => ({})
-      },
-      timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
-      messageKey: 'message'
-    }) as any; // Type assertion for custom levels
+    // Use multi-transport logger if Better Stack is configured
+    const betterStackToken = process.env.BETTERSTACK_SOURCE_TOKEN || process.env.LOGTAIL_SOURCE_TOKEN;
+    
+    if (betterStackToken) {
+      // Create logger with multiple transports (console + Better Stack)
+      this.logger = createMultiTransportLogger({
+        betterStackToken,
+        enableConsole: true,
+        enableBetterStack: true,
+        environment: process.env.NODE_ENV || 'production',
+        service: 'tg-chatbot'
+      });
+      
+      // Initialize Better Stack monitoring if not already done
+      if (!EnhancedLogger.betterStackMonitor) {
+        EnhancedLogger.betterStackMonitor = initializeBetterStackMonitoring(betterStackToken);
+      }
+    } else {
+      // Fallback to standard Pino logger
+      this.logger = pino({
+        level: process.env.LOG_LEVEL || 'info',
+        formatters: {
+          level: (label) => ({ level: label }),
+          bindings: () => ({})
+        },
+        timestamp: () => `,"timestamp":"${new Date().toISOString()}"`,
+        messageKey: 'message'
+      }) as any; // Type assertion for custom levels
+    }
   }
   
   // Set or update user context
@@ -284,6 +305,19 @@ class EnhancedLogger {
         commandCount: this.userContext?.commandCount
       }
     });
+    
+    // Track command metrics in Better Stack
+    if (EnhancedLogger.betterStackMonitor) {
+      EnhancedLogger.betterStackMonitor.trackEvent(`command_${command}`, {
+        module,
+        result,
+        duration,
+        userId: this.userContext?.userId,
+        platform: this.userContext?.platform
+      });
+      
+      EnhancedLogger.betterStackMonitor.trackMetric('command_duration', duration, 'ms');
+    }
   }
   
   // Log API calls
@@ -362,6 +396,14 @@ export function createLogger(options?: { correlationId?: string; userContext?: U
     globalLogger = new EnhancedLogger(options);
   }
   return options ? globalLogger.child(options) : globalLogger;
+}
+
+// Flush logs before shutdown
+export async function flushLogs(): Promise<void> {
+  const monitor = (EnhancedLogger as any).betterStackMonitor;
+  if (monitor) {
+    await monitor.flush();
+  }
 }
 
 // Create correlation ID for new requests
