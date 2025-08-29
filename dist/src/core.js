@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { readdir } from 'fs/promises';
 import logger from './utils/logger.js';
+import { createLogger, LogAction } from './utils/enhanced-logger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 class Core {
@@ -71,24 +72,69 @@ class Core {
      * Handle incoming message by routing to appropriate module
      */
     async handleMessage(text, context) {
+        // Create enhanced logger for this request
+        const enhancedLogger = context.logger || createLogger({
+            correlationId: context.correlationId,
+            userContext: context.userContext
+        });
+        // Start timing
+        enhancedLogger.startTimer('message_processing');
+        enhancedLogger.startTimer('module_routing');
         // Add core reference to context
         context.core = this;
+        context.logger = enhancedLogger;
         // Add user message to history
         this.addToHistory(context, { role: 'user', content: text });
+        // Log incoming message with user context
+        enhancedLogger.info(LogAction.COMMAND_EXECUTED, {
+            message: `Processing message from @${context.userContext?.username || context.userId}`,
+            command: text.startsWith('/') ? text.split(' ')[0] : 'text_message',
+            metadata: {
+                messageLength: text.length,
+                historySize: context.conversationHistory?.length || 0,
+                platform: context.platform
+            }
+        });
         try {
             // Find the first module that can handle this message
             for (const module of this.modules) {
                 try {
                     if (await module.canHandle(text, context)) {
-                        logger.debug(`📨 Routing message to ${module.name}`);
+                        const routingTime = enhancedLogger.endTimer('module_routing');
+                        enhancedLogger.info(LogAction.COMMAND_EXECUTED, {
+                            message: `Routing to ${module.name} module`,
+                            module: module.name,
+                            metadata: {
+                                routingTime,
+                                priority: module.priority
+                            }
+                        });
+                        enhancedLogger.startTimer('module_execution');
                         const response = await module.handle(text, context);
+                        const executionTime = enhancedLogger.endTimer('module_execution');
                         // Add assistant response to history
                         this.addToHistory(context, { role: 'assistant', content: response });
+                        // Log successful completion
+                        const totalTime = enhancedLogger.endTimer('message_processing');
+                        enhancedLogger.logCommand(text.startsWith('/') ? (text.split(' ')[0] || '/unknown') : 'message', module.name, 'success', {
+                            responseLength: response.length,
+                            timingBreakdown: {
+                                routing: routingTime,
+                                execution: executionTime,
+                                total: totalTime
+                            }
+                        });
                         return response;
                     }
                 }
                 catch (error) {
                     logger.error(`❌ Error in module ${module.name}:`, error);
+                    enhancedLogger.error(LogAction.ERROR, {
+                        type: 'ModuleError',
+                        message: `Error in ${module.name}: ${error.message}`,
+                        severity: 'medium',
+                        stackTrace: error.stack
+                    });
                     // Continue to next module on error
                     continue;
                 }
@@ -96,6 +142,16 @@ class Core {
             // No module could handle the message
             const fallbackMessage = '🤔 I\'m not sure how to help with that. Try /help for available commands.';
             this.addToHistory(context, { role: 'assistant', content: fallbackMessage });
+            const totalTime = enhancedLogger.endTimer('message_processing');
+            enhancedLogger.warn(LogAction.COMMAND_EXECUTED, {
+                message: 'No module could handle message',
+                command: text.startsWith('/') ? text.split(' ')[0] : 'unknown',
+                result: 'failure',
+                metadata: {
+                    fallbackUsed: true,
+                    totalTime
+                }
+            });
             return fallbackMessage;
         }
         catch (error) {

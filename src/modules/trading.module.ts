@@ -5,6 +5,7 @@ import BaseModule from './base.module.js';
 import PositionCommand from '../commands/position.js';
 import UserService from '../services/userService.js';
 import logger from '../utils/logger.js';
+import { LogAction } from '../utils/enhanced-logger.js';
 import { MessageContext, CommandMatch, TelegramResponseContext } from '../types/index.js';
 
 export class TradingModule extends BaseModule {

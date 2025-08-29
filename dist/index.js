@@ -8,6 +8,8 @@ import { Telegraf } from 'telegraf';
 import Core from './src/core.js';
 import getConfig from './src/config/index.js';
 import logger from './src/utils/logger.js';
+import { LogAction } from './src/utils/enhanced-logger.js';
+import { loggingMiddleware, createTelegramLogger, extractTelegramUserContext } from './src/middleware/logging.middleware.js';
 class ChatbotApp {
     app;
     state;
@@ -39,16 +41,8 @@ class ChatbotApp {
         // Body parsing
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
-        // Request logging
-        this.app.use((req, res, next) => {
-            logger.info('Incoming request', {
-                method: req.method,
-                url: req.url,
-                ip: req.ip,
-                userAgent: req.get('User-Agent')
-            });
-            next();
-        });
+        // Enhanced request logging
+        this.app.use(loggingMiddleware);
     }
     setupRoutes() {
         // Health check
@@ -85,36 +79,94 @@ class ChatbotApp {
     setupTelegraf() {
         // Handle text messages
         this.state.bot.on('text', async (ctx) => {
+            // Create enhanced logger for this request
+            const enhancedLogger = createTelegramLogger(ctx);
             try {
                 const userId = ctx.from?.id;
                 const chatId = ctx.chat.id;
                 const messageText = ctx.message.text;
+                const username = ctx.from?.username;
+                const firstName = ctx.from?.first_name;
+                const lastName = ctx.from?.last_name;
                 if (!userId || !messageText) {
                     return;
                 }
+                // Start timing
+                enhancedLogger.startTimer('total_processing');
                 // Get or create conversation context
                 let context = this.state.conversationHistory.get(chatId);
                 if (!context) {
                     context = {
                         chatId: chatId,
                         history: [],
-                        userId: userId
+                        userId: userId,
+                        logger: enhancedLogger,
+                        correlationId: enhancedLogger.correlationId,
+                        userContext: extractTelegramUserContext(ctx),
+                        platform: 'telegram',
+                        conversationHistory: []
                     };
                     this.state.conversationHistory.set(chatId, context);
+                    // Log new user session
+                    enhancedLogger.info(LogAction.USER_SESSION_START, {
+                        message: `New session for @${username || userId}`,
+                        metadata: {
+                            fullName: `${firstName || ''} ${lastName || ''}`.trim(),
+                            platform: 'telegram'
+                        }
+                    });
                 }
+                else {
+                    // Update context with fresh logger and user info
+                    context.logger = enhancedLogger;
+                    context.correlationId = enhancedLogger.correlationId;
+                    context.userContext = extractTelegramUserContext(ctx);
+                }
+                // Log incoming message
+                enhancedLogger.info(LogAction.COMMAND_EXECUTED, {
+                    message: `Received: "${messageText.substring(0, 50)}${messageText.length > 50 ? '...' : ''}"`,
+                    command: messageText.startsWith('/') ? messageText.split(' ')[0] : 'text_message',
+                    metadata: {
+                        username: `@${username}`,
+                        fullName: `${firstName || ''} ${lastName || ''}`.trim(),
+                        messageLength: messageText.length
+                    }
+                });
                 // Process message with core
+                enhancedLogger.startTimer('core_processing');
                 const response = await this.state.core.handleMessage(messageText, context);
+                const coreTime = enhancedLogger.endTimer('core_processing');
                 // Send response
+                enhancedLogger.startTimer('telegram_send');
                 await ctx.reply(response);
-                logger.info({
-                    userId,
-                    chatId,
-                    message: messageText,
-                    response: response.substring(0, 100) + (response.length > 100 ? '...' : '')
-                }, 'Message processed');
+                const sendTime = enhancedLogger.endTimer('telegram_send');
+                // Log completion
+                const totalTime = enhancedLogger.endTimer('total_processing');
+                enhancedLogger.info(LogAction.COMMAND_EXECUTED, {
+                    message: 'Message processed successfully',
+                    result: 'success',
+                    metadata: {
+                        username: `@${username}`,
+                        responseLength: response.length,
+                        responsePreview: response.substring(0, 100) + (response.length > 100 ? '...' : '')
+                    },
+                    performance: {
+                        responseTime: totalTime,
+                        apiCalls: {
+                            core: coreTime,
+                            telegram: sendTime
+                        }
+                    }
+                });
             }
             catch (error) {
                 logger.error('Error handling Telegram message:', error);
+                enhancedLogger.error(LogAction.ERROR, {
+                    type: 'TelegramMessageError',
+                    message: error.message,
+                    severity: 'high',
+                    stackTrace: error.stack
+                });
                 await ctx.reply('❌ Sorry, I encountered an error processing your message.');
             }
         });

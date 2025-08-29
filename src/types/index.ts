@@ -1,11 +1,19 @@
 // src/types/index.ts
 // Core type definitions for the chatbot application
 
+import type { UserContext } from '../utils/enhanced-logger.js';
+import type EnhancedLogger from '../utils/enhanced-logger.js';
+
 export interface MessageContext {
   chatId: number;
   history: ConversationMessage[];
   core?: Core;
   userId?: number;
+  logger?: EnhancedLogger;
+  correlationId?: string;
+  userContext?: UserContext;
+  platform?: 'telegram' | 'whatsapp' | 'discord';
+  conversationHistory?: ConversationMessage[];
 }
 
 export interface ConversationMessage {
